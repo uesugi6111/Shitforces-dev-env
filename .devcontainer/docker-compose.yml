@@ -1,0 +1,62 @@
+version: '3'
+
+services:
+  app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # [Choice] Node.js version: 14, 12, 10
+        VARIANT: 14
+        # On Linux, you may need to update USER_UID and USER_GID below if not your local UID is not 1000.
+        USER_UID: 1000
+        USER_GID: 1000
+
+    volumes:
+      - ../Shitforces/:/workspace/Shitforces/:cached
+      
+    # Overrides default command so things don't shut down after the process ends.
+    command: sleep infinity
+
+    # Runs app on the same network as the database container, allows "forwardPorts" in devcontainer.json function.
+    ports:
+        - "3000:3000"
+    environment:
+      PORT: "3000"
+      REACT_APP_BACKEND_URL: "http://host.docker.internal:8080"
+
+
+  db:
+    image: postgres:latest
+    restart: unless-stopped
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "8001:5432"
+
+    # Add "forwardPorts": ["5432"] to **devcontainer.json** to forward MongoDB locally.
+    # (Adding the "ports" property to this file will not forward from a Codespace.)
+  backend:
+    image: gradle:jdk11
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../Shitforces/gradle:/home/gradle/project/gradle
+      - ../Shitforces/src:/home/gradle/project/src
+      - ../Shitforces/build.gradle.kts:/home/gradle/project/build.gradle.kts
+      - ../Shitforces/gradlew:/home/gradle/project/gradlew
+      - ../Shitforces/settings.gradle.kts:/home/gradle/project/settings.gradle.kts
+      - ../Shitforces/system.properties:/home/gradle/project/system.properties
+    working_dir: /home/gradle/project
+    environment:
+      DATABASE_URL: jdbc:postgresql://db:5432/postgres
+      DATABASE_PASSWORD: postgres
+      DATABASE_USER: postgres
+      GRADLE_USER_HOME: /tmp
+    command: gradle bootRun -Pargs="--only-back-end"
+volumes:
+  postgres-data:
